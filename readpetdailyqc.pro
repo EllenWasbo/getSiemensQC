@@ -59,14 +59,14 @@ errMsg=''
   rowno=WHERE(shortres EQ 'Block Nois')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
-    IF clipSplit(-2) NE '0' THEN stop
+    IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block noise out of range.']
   ENDIF
 
   ;Block Efficiency 120 [%] 80 [%] 0 Blocks
   rowno=WHERE(shortres EQ 'Block Effi')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
-    IF clipSplit(-2) NE '0' THEN stop
+    IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block efficiency out of range.']
   ENDIF
 
   ;Randoms 115 [%] 85 [%] 103.8 [%] Passed
@@ -114,7 +114,7 @@ errMsg=''
   rowno=WHERE(shortres EQ 'Image Plan')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)+1),' ',/EXTRACT)
-    IF clipSplit(-2) NE '0' THEN stop
+    IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Image plane efficiency out of range.']
   ENDIF
 
   ;      Block Timing
@@ -123,7 +123,11 @@ errMsg=''
   rowno=WHERE(shortres EQ 'Block Timi')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)+1),' ',/EXTRACT)
-    IF clipSplit(-2) NE '0' THEN stop
+    IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block timing offset out of range.']
+    IF N_ELEMENTS(rowno) EQ 2 THEN BEGIN
+      clipSplit=STRSPLIT(clipres(rowno(1)+1),' ',/EXTRACT)
+      IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block timing width out of range.']
+    ENDIF
   ENDIF
 
   ;      Time Alignment
@@ -164,5 +168,8 @@ errMsg=''
 
   resArr=[date, part, full, timA, STRING(calib),STRING(resVect)]
   
-  return, resArr
+   
+  res=CREATE_STRUCT('strArrRes',resArr, 'errMsg', errMsg)
+  
+  return, res
 end

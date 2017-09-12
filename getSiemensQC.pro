@@ -17,10 +17,12 @@
 
 pro getSiemensQC,  GROUP_LEADER=bMain
 
-  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, cw_deciMark, btnTrans, btnHeaders
+  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, cw_deciMark, btnTrans, btnHeaders, newline
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('getSiemensQC'))+'\'
   RESTORE, thisPath+'config.dat'
+  
+  if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
 
   months=config.months;['Januray','February','March','April','May','June','July','August','September','October','November','December']
 
@@ -133,7 +135,10 @@ pro getSiemensQC_event, event
         WIDGET_CONTROL, cwType, GET_VALUE=type
         CASE type OF
           0:BEGIN;PET
-            strArrRes=readPETdailyQC(clipb, config)
+            resu=readPETdailyQC(clipb, config)
+            strArrRes=resu.strArrRes
+            errMsg=STRJOIN(resu.errMsg, newline)+newline+'Not reported in table.'
+            IF errMsg NE '' THEN sv=DIALOG_MESSAGE(errMsg)
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
             curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
@@ -178,7 +183,10 @@ pro getSiemensQC_event, event
 
             CASE type OF
               0:BEGIN; PET
-                strArrRes=readPETdailyQC(array, config)
+                resu=readPETdailyQC(array, config)
+                strArrRes=resu.strArrRes
+                errArr(i)=STRJOIN(resu.errMsg,newline)
+                IF errArr(i) NE '' THEN errArr(i)=errArr(i)+newline+'Not reported in table.'
                 curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
               END
               1:BEGIN; CT constancy
@@ -194,7 +202,7 @@ pro getSiemensQC_event, event
           ENDFOR
           errs=WHERE(errArr NE '')
           IF errs(0) NE -1 THEN BEGIN
-            if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
+            
             errLogg=''
             FOR u=0, N_ELEMENTS(errs)-1 DO errLogg=errLogg+FILE_BASENAME(adr(errs(u)))+':'+newline + errArr(errs(u))+newline
             sv=DIALOG_MESSAGE(errLogg)
