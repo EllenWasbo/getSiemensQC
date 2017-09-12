@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 function readPETdailyQC, clipres, config
-
+errMsg=''
   shortres=STRARR(N_ELEMENTS(clipres))
   FOR i=0, N_ELEMENTS(clipres)-1 DO shortres(i)=STRMID(clipres(i), 0, 10)
   resVect=FLTARR(9)

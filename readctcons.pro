@@ -15,7 +15,7 @@
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 function readCTcons, clipres, config
-  
+  errMsg=''
   ;tolerance
   ;HU water +/-4 from ref, but never above +/-4
   ;diff +/-2 from ref
@@ -61,7 +61,7 @@ function readCTcons, clipres, config
       ENDIF
     ENDFOR
 
-    IF typeRep EQ -1 THEN sv=DIALOG_MESSAGE('Found no language match or no results in file.') ELSE BEGIN
+    IF typeRep EQ -1 THEN errMsg='Found no language match or no results in file.' ELSE BEGIN
 
       ;date
       date=STRSPLIT(clipres(2),' ',/EXTRACT)
@@ -307,6 +307,8 @@ function readCTcons, clipres, config
   IF MIN(resVectST) NE -1000. THEN strArrRes[12:12+3]=STRING(resVectST, FORMAT='(f0.2)')
   IF MIN(resVectMTF) NE -1000. THEN strArrRes[16:16+5]=STRING(resVectMTF, FORMAT='(f0.2)')
 
-  return, strArrRes
+  res=CREATE_STRUCT('strArrRes',strArrRes, 'errMsg', errMsg)
+
+  return, res
 
 end

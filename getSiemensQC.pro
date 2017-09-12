@@ -25,7 +25,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   months=config.months;['Januray','February','March','April','May','June','July','August','September','October','November','December']
 
   langu=0;english default
-  
+
   xsz=700
 
   bMain = WIDGET_BASE(TITLE='Extracting info from Siemens QC reports PET and CT', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=800, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
@@ -48,14 +48,16 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   mlA1=WIDGET_LABEL(bRead2, VALUE='', XSIZE=30)
   bInstructions=WIDGET_BASE(bRead2, /COLUMN, /ALIGN_RIGHT)
   inst0=WIDGET_LABEL(bInstructions, VALUE='Instructions', XSIZE=150, FONT='Arial*Bold*12')
-  inst1=WIDGET_LABEL(bInstructions, VALUE='* Open report pdf', XSIZE=150)
+  inst1=WIDGET_LABEL(bInstructions, VALUE='* Open a report (pdf or txt)', XSIZE=150)
   inst2=WIDGET_LABEL(bInstructions, VALUE='* Select all text (Ctrl+A)', XSIZE=150)
   inst3=WIDGET_LABEL(bInstructions, VALUE='* Copy to clipboard (Ctrl+C)', XSIZE=150)
   inst4=WIDGET_LABEL(bInstructions, VALUE='* Press "Read from clipboard"', XSIZE=150)
   inst5=WIDGET_LABEL(bInstructions, VALUE='* Repeat for all reports', XSIZE=150)
-  
+  mlT=WIDGET_LABEL(bRead, VALUE='', YSIZE=10)
+  btnReadExcel=WIDGET_BUTTON(bRead, VALUE='Read from txt files (automated)', UVALUE='readTxtFiles', XSIZE=200)
+
   ml1=WIDGET_LABEL(bMain, VALUE='', YSIZE=20)
-  
+
   headersPET=['Date','Partial','Full',$
     'Time Align','Calib Factor','Measured Randoms','Scanner Efficiency',$
     'Scatter Ratio','ECF','Time Alignment Residual', 'Time Alignment fit x','Time Alignment fit y',$
@@ -68,7 +70,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
     'MTF50 B30f','MTF10 B30f','MTF50 H30s','MTF10 H30s','MTF50 H70h','MTF10 H70h']
   headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT)
   tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=450, row_labels=headers.(1), COLUMN_WIDTHS=80)
-  
+
   bCopy=WIDGET_BASE(bMain, /COLUMN, XSIZE=xsz-10)
   lblCopy=WIDGET_LABEL(bCopy, VALUE='Copy table to clipboard', FONT='Arial*Bold*18')
   bCopy2=WIDGET_BASE(bCopy, /ROW, FRAME=1, YSIZE=100)
@@ -81,7 +83,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   btnHeaders=WIDGET_BUTTON(bCopy3, VALUE='Include headers')
   WIDGET_CONTROL, btnTrans, /SET_BUTTON
   btnCopyTbl=WIDGET_BUTTON(bBtnBtm, VALUE='Copy table to clipboard', UVALUE='copyTbl', XSIZE=200)
-  
+
   WIDGET_CONTROL, bMain, /REALIZE
   XMANAGER, 'getSiemensQC', bMain
 
@@ -131,7 +133,7 @@ pro getSiemensQC_event, event
         WIDGET_CONTROL, cwType, GET_VALUE=type
         CASE type OF
           0:BEGIN;PET
-            strArrRes=readPETdailyQC(clipb, config)        
+            strArrRes=readPETdailyQC(clipb, config)
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
             curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
@@ -139,8 +141,10 @@ pro getSiemensQC_event, event
             WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
           END
           1:BEGIN; CT constancy
-            strArrRes=readCTcons(clipb, config)
-            ;IF N_TAGS(structRes) EQ 1 THEN sv=DIALOG_MESSAGE('Found no results for the tests in this text.') ELSE BEGIN 
+            resu=readCTcons(clipb, config)
+            strArrRes=resu.strArrRes
+            IF resu.errMsg NE '' THEN sv=DIALOG_MESSAGE(resu.errMsg)
+            ;IF N_TAGS(structRes) EQ 1 THEN sv=DIALOG_MESSAGE('Found no results for the tests in this text.') ELSE BEGIN
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
             curTbl[empt(0),*]=TRANSPOSE(strArrRes)
@@ -151,11 +155,58 @@ pro getSiemensQC_event, event
 
       END
 
+      'readTxtFiles':BEGIN
+        adr=dialog_pickfile(/READ, /Multiple, Filter='*.txt', /FIX_FILTER, TITLE='Select report-file(s)')
+        IF adr(0) NE '' THEN BEGIN
+
+          errArr=STRARR(N_ELEMENTS(adr))
+          WIDGET_CONTROL, cwType, GET_VALUE=type
+
+          FOR i=0, N_ELEMENTS(adr)-1 DO BEGIN
+            OPENR, lun, adr(i), /GET_LUN
+            array=''
+            line=''
+            WHILE NOT EOF(lun) DO BEGIN
+              READF, lun, line
+              array=[array,line]
+            ENDWHILE
+            array=array[1:N_ELEMENTS(array)-1]
+            FREE_LUN,lun
+            
+            WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
+            empt=WHERE(curTbl[*,0] EQ '')
+
+            CASE type OF
+              0:BEGIN; PET
+                strArrRes=readPETdailyQC(array, config)
+                curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
+              END
+              1:BEGIN; CT constancy
+                resu=readCTcons(array, config)
+                strArrRes=resu.strArrRes
+                errArr(i)=resu.errMsg
+                curTbl[empt(0),*]=TRANSPOSE(strArrRes)
+              END
+            ENDCASE
+            IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
+            WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
+            
+          ENDFOR
+          errs=WHERE(errArr NE '')
+          IF errs(0) NE -1 THEN BEGIN
+            if (!D.NAME eq 'WIN') then newline = string([13B, 10B]) else newline = string(10B)
+            errLogg=''
+            FOR u=0, N_ELEMENTS(errs)-1 DO errLogg=errLogg+FILE_BASENAME(adr(errs(u)))+':'+newline + errArr(errs(u))+newline
+            sv=DIALOG_MESSAGE(errLogg)
+          ENDIF
+        ENDIF
+      END
+
       'copyTbl': BEGIN
-        
+
         WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
         szT=SIZE(curTbl, /DIMENSIONS)
-        
+
         ;decimal mark
         WIDGET_CONTROL, cw_deciMark, GET_VALUE=deci
         IF deci EQ 1 THEN BEGIN
@@ -165,17 +216,17 @@ pro getSiemensQC_event, event
             ENDFOR
           ENDFOR
         ENDIF
-          
-        ;headers?     
+
+        ;headers?
         newTable=STRARR(szT(0)+1,szT(1))
         newTable[1:szT(0),*]=curTbl
         WIDGET_CONTROL, cwType, GET_VALUE=type
         newTable[0,0:N_ELEMENTS(headers.(type))-1]=TRANSPOSE(headers.(type))
         IF ~WIDGET_INFO(btnHeaders, /BUTTON_SET) THEN newTable=newTable[1:szT(0),*]
-        
-        ;transpose        
-        IF WIDGET_INFO(btnTrans, /BUTTON_SET) THEN newTable=TRANSPOSE(newTable) 
-        
+
+        ;transpose
+        IF WIDGET_INFO(btnTrans, /BUTTON_SET) THEN newTable=TRANSPOSE(newTable)
+
         CLIPBOARD.set, STRJOIN(newTable, STRING(9B))
       END
 
