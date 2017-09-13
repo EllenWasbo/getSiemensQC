@@ -17,7 +17,7 @@
 
 pro getSiemensQC,  GROUP_LEADER=bMain
 
-  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, cw_deciMark, btnTrans, btnHeaders, newline
+  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, cw_deciMark, btnTrans, btnSort, btnHeaders, newline
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('getSiemensQC'))+'\'
   RESTORE, thisPath+'config.dat'
@@ -83,7 +83,9 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   bCopy3=WIDGET_BASE(bBtnBtm, /NONEXCLUSIVE, /COLUMN)
   btnTrans=WIDGET_BUTTON(bCopy3, VALUE='Transpose table when copied')
   btnHeaders=WIDGET_BUTTON(bCopy3, VALUE='Include headers')
+  btnSort=WIDGET_BUTTON(bCopy3, VALUE='Sort by date when copied')
   WIDGET_CONTROL, btnTrans, /SET_BUTTON
+  WIDGET_CONTROL, btnSort, /SET_BUTTON
   btnCopyTbl=WIDGET_BUTTON(bBtnBtm, VALUE='Copy table to clipboard', UVALUE='copyTbl', XSIZE=200)
 
   WIDGET_CONTROL, bMain, /REALIZE
@@ -137,8 +139,8 @@ pro getSiemensQC_event, event
           0:BEGIN;PET
             resu=readPETdailyQC(clipb, config)
             strArrRes=resu.strArrRes
-            errMsg=STRJOIN(resu.errMsg, newline)+newline+'Not reported in table.'
-            IF errMsg NE '' THEN sv=DIALOG_MESSAGE(errMsg)
+            IF strArrRes(0) EQ '' THEN sv=DIALOG_MESSAGE('Unexpected file content. Is this really a PET daily QC report?') 
+            IF resu.errMsg NE '' THEN sv=DIALOG_MESSAGE(STRJOIN(resu.errMsg, newline)+newline+'Not reported in table.')
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
             curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
@@ -185,8 +187,10 @@ pro getSiemensQC_event, event
               0:BEGIN; PET
                 resu=readPETdailyQC(array, config)
                 strArrRes=resu.strArrRes
+                
                 errArr(i)=STRJOIN(resu.errMsg,newline)
                 IF errArr(i) NE '' THEN errArr(i)=errArr(i)+newline+'Not reported in table.'
+                IF strArrRes(0) EQ '' THEN errArr(i)='Unexpected file content. Is this really a PET daily QC report?'
                 curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
               END
               1:BEGIN; CT constancy
@@ -213,7 +217,26 @@ pro getSiemensQC_event, event
       'copyTbl': BEGIN
 
         WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
+        
+        empt=WHERE(curTbl[*,0] EQ '')
+        curTbl=curTbl[0:empt(0)-1,*]
         szT=SIZE(curTbl, /DIMENSIONS)
+
+        ;sort by date? format dd.mm.yyyy
+        IF WIDGET_INFO(btnSort, /BUTTON_SET) THEN BEGIN
+          dateStrings=curTbl[*,0]
+          dateId=INTARR(szT(0))
+          FOR i=0, szT(0)-1 DO BEGIN
+            dmy=STRSPLIT(dateStrings(i),'.',/EXTRACT)
+            dmy=LONG(dmy)
+            dateId(i)=JULDAY(dmy(1), dmy(0), dmy(2))    ;month,day,year
+          ENDFOR
+          sorted=SORT(dateID)
+          FOR j=0, szT(1)-1 DO BEGIN
+            temp=curTbl[*,j]
+            curTbl[*,j]=temp(sorted)
+          ENDFOR
+        ENDIF
 
         ;decimal mark
         WIDGET_CONTROL, cw_deciMark, GET_VALUE=deci

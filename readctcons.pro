@@ -61,7 +61,7 @@ function readCTcons, clipres, config
       ENDIF
     ENDFOR
 
-    IF typeRep EQ -1 THEN errMsg='Found no language match or no results in file.' ELSE BEGIN
+    IF typeRep EQ -1 THEN errMsg='No results in file or unexpected content or language.' ELSE BEGIN
 
       ;date
       date=STRSPLIT(clipres(2),' ',/EXTRACT)

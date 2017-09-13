@@ -16,10 +16,12 @@
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 function readPETdailyQC, clipres, config
 errMsg=''
+  
   shortres=STRARR(N_ELEMENTS(clipres))
   FOR i=0, N_ELEMENTS(clipres)-1 DO shortres(i)=STRMID(clipres(i), 0, 10)
   resVect=FLTARR(9)
 
+  IF clipres(0) EQ 'System Quality Report' THEN BEGIN
   ;date
   rowno=WHERE(shortres EQ 'Scan Date:')
   date=STRSPLIT(clipres(rowno),',',/EXTRACT)
@@ -168,6 +170,7 @@ errMsg=''
 
   resArr=[date, part, full, timA, STRING(calib),STRING(resVect)]
   
+  ENDIF ELSE resArr=STRARR(14)
    
   res=CREATE_STRUCT('strArrRes',resArr, 'errMsg', errMsg)
   
