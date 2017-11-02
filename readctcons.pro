@@ -25,7 +25,7 @@ function readCTcons, clipres, config
   ;MTF H30s 2,84-3,47 / 5,13-6,27
   ;MTF H70h 10,24-12,52 / 12,60-15,4
   
-  strArrRes=STRARR(22)
+  strArrRes=STRARR(24)
   structRes=CREATE_STRUCT('empty',0)
   IF N_ELEMENTS(clipres) GT 1 THEN BEGIN
     nShortRes=15
@@ -39,7 +39,7 @@ function readCTcons, clipres, config
     resVectWA=FLTARR(4)-1000.; HU water min/max head + body
     resVectHO=FLTARR(2)-1000.; max diff center head + body
     resVectNO=FLTARR(2)-1000.; max noise head + body
-    resVectMTF=FLTARR(6)-1000.; 50% 10% typical head + mean typical body + sharpest 
+    resVectMTF=FLTARR(8)-1000.; 50% 10% typical head + mean typical body + sharpest 
 
     ;detect language and type of report
     nLangu=N_TAGS(config.CT)
@@ -254,43 +254,49 @@ function readCTcons, clipres, config
         FOR a=0, 2 DO BEGIN
           rowno=WHERE(shortres[rownoMTF(1):-1] EQ STRMID(strTestResort(a), 0, nShortRes))
           IF rowno(0) NE -1 THEN BEGIN
+            ccc=0
+            IF a EQ 2 AND N_ELEMENTS(rowno) EQ 2 THEN ccc=1
             rowno=rowno+rownoMTF(1)
-            
-            ;number of Images in test
-            rownoNimg=WHERE(STRMATCH(clipres[rowno(0):-1], config.CT.(langu)(8)+'*',/FOLD_CASE) EQ 1)
-            strNimg=STRSPLIT(clipres(rownoNimg(0)+rowno(0)),' ',/EXTRACT)
-            nImg=LONG(strNimg(-1))
-
-            addSlice=WHERE(shortres5[rowno(0):-1] EQ sliceStr)
-            addSlice=addSlice[1:-1];first one is Nominal slice thickness
-            rownoTol=WHERE(shortres5[rowno(0):-1] EQ tolStr)
-            rownoTest=WHERE(shortres5[rowno(0):-1] EQ STRMID(strTest(0), 0, 5))
-            IF addSlice(0) NE -1 THEN BEGIN
-              IF N_ELEMENTS(STRSPLIT(clipres(rowno(0)+addslice(0)),' ',/EXTRACT)) GT 2 THEN BEGIN; tolerance at end
-                actLines=WHERE(addslice LT rownoTol(0))
-                nImg=N_ELEMENTS(actLines)
-                res=FLTARR(2,nImg)
-                FOR i=0, nImg-1 DO BEGIN
-                  clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(actLines(i))),' ',/EXTRACT)
-                  res(0,i)=FLOAT(clipSplit(-4))
-                  res(1,i)=FLOAT(clipSplit(-2))
-                ENDFOR
-              ENDIF ELSE BEGIN
-                IF rownoTest(0) NE -1 AND N_ELEMENTS(rownoTest) GT 1 THEN BEGIN
-                  actLines=WHERE(addslice LT rownoTest(1))
-                  actLines=addSlice(actLines)+2
-                ENDIF ELSE actLines=addSlice+2
-                nImg=N_ELEMENTS(actLines)
-                res=FLTARR(2,nImg)
-                FOR i=0, nImg-1 DO BEGIN
-                  clipSplit=STRSPLIT(clipres(rowno(0)+actLines(i)),' ',/EXTRACT)
-                  res(0,i)=FLOAT(clipSplit(0))
-                  clipSplit=STRSPLIT(clipres(rowno(0)+actLines(i)+2),' ',/EXTRACT)
-                  res(1,i)=FLOAT(clipSplit(0))
-                ENDFOR
-              ENDELSE
-              resVectMTF[0+a*2:1+a*2]=[MEAN(res[0,*]),MEAN(res[1,*])]
-            ENDIF
+            FOR cc=0, ccc DO BEGIN
+              
+              IF cc EQ 1 THEN rowno=rowno(1)
+              ;number of Images in test
+              rownoNimg=WHERE(STRMATCH(clipres[rowno(0):-1], config.CT.(langu)(8)+'*',/FOLD_CASE) EQ 1)
+              strNimg=STRSPLIT(clipres(rownoNimg(0)+rowno(0)),' ',/EXTRACT)
+              nImg=LONG(strNimg(-1))
+  
+              addSlice=WHERE(shortres5[rowno(0):-1] EQ sliceStr)
+              addSlice=addSlice[1:-1];first one is Nominal slice thickness
+              rownoTol=WHERE(shortres5[rowno(0):-1] EQ tolStr)
+              rownoTest=WHERE(shortres5[rowno(0):-1] EQ STRMID(strTest(0), 0, 5))
+              IF addSlice(0) NE -1 THEN BEGIN
+                IF N_ELEMENTS(STRSPLIT(clipres(rowno(0)+addslice(0)),' ',/EXTRACT)) GT 2 THEN BEGIN; tolerance at end
+                  actLines=WHERE(addslice LT rownoTol(0))
+                  nImg=N_ELEMENTS(actLines)
+                  res=FLTARR(2,nImg)
+                  FOR i=0, nImg-1 DO BEGIN
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(actLines(i))),' ',/EXTRACT)
+                    res(0,i)=FLOAT(clipSplit(-4))
+                    res(1,i)=FLOAT(clipSplit(-2))
+                  ENDFOR
+                ENDIF ELSE BEGIN
+                  IF rownoTest(0) NE -1 AND N_ELEMENTS(rownoTest) GT 1 THEN BEGIN
+                    actLines=WHERE(addslice LT rownoTest(1))
+                    actLines=addSlice(actLines)+2
+                  ENDIF ELSE actLines=addSlice+2
+                  nImg=N_ELEMENTS(actLines)
+                  res=FLTARR(2,nImg)
+                  FOR i=0, nImg-1 DO BEGIN
+                    clipSplit=STRSPLIT(clipres(rowno(0)+actLines(i)),' ',/EXTRACT)
+                    res(0,i)=FLOAT(clipSplit(0))
+                    clipSplit=STRSPLIT(clipres(rowno(0)+actLines(i)+2),' ',/EXTRACT)
+                    res(1,i)=FLOAT(clipSplit(0))
+                  ENDFOR
+                ENDELSE
+                
+                resVectMTF[0+(a+cc)*2:1+(a+cc)*2]=[MEAN(res[0,*]),MEAN(res[1,*])]
+              ENDIF
+            ENDFOR
 
           ENDIF
         ENDFOR
@@ -305,7 +311,10 @@ function readCTcons, clipres, config
   IF MIN(resVectHO) NE -1000. THEN strArrRes[8:8+1]=STRING(resVectHO, FORMAT='(f0.2)')
   IF MIN(resVectNO) NE -1000. THEN strArrRes[10:10+1]=STRING(resVectNO, FORMAT='(f0.2)')
   IF MIN(resVectST) NE -1000. THEN strArrRes[12:12+3]=STRING(resVectST, FORMAT='(f0.2)')
-  IF MIN(resVectMTF) NE -1000. THEN strArrRes[16:16+5]=STRING(resVectMTF, FORMAT='(f0.2)')
+  IF MIN(resVectMTF[0:5]) NE -1000. THEN BEGIN
+    strArrRes[16:16+7]=STRING(resVectMTF, FORMAT='(f0.2)')
+    IF MIN(resVectMTF) EQ -1000. THEN strArrRes[16+6:16+7]=''
+  ENDIF
 
   res=CREATE_STRUCT('strArrRes',strArrRes, 'errMsg', errMsg)
 

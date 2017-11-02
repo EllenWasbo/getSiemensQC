@@ -30,7 +30,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
 
   xsz=700
 
-  bMain = WIDGET_BASE(TITLE='Extracting info from Siemens QC reports PET and CT', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=800, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='Extracting info from Siemens QC reports PET and CT', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=820, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
 
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
   btn_clear=WIDGET_BUTTON(file_menu, VALUE='Clear table', UVALUE='clear')
@@ -69,9 +69,9 @@ pro getSiemensQC,  GROUP_LEADER=bMain
     'Diff head max(abs)','Diff body max(abs)',$
     'Noise head max','Noise body max',$
     'Slice head min','Slice head max','Slice body min','Slice body max',$
-    'MTF50 B30f','MTF10 B30f','MTF50 H30s','MTF10 H30s','MTF50 H70h','MTF10 H70h']
+    'MTF50 B30f','MTF10 B30f','MTF50 H30s','MTF10 H30s','MTF50 H70h','MTF10 H70h','MTF50 U95u','MTF10 U95u']
   headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT)
-  tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=450, row_labels=headers.(1), COLUMN_WIDTHS=80)
+  tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=470, row_labels=headers.(1), COLUMN_WIDTHS=80)
 
   bCopy=WIDGET_BASE(bMain, /COLUMN, XSIZE=xsz-10)
   lblCopy=WIDGET_LABEL(bCopy, VALUE='Copy table to clipboard', FONT='Arial*Bold*18')
@@ -228,6 +228,10 @@ pro getSiemensQC_event, event
           dateId=INTARR(szT(0))
           FOR i=0, szT(0)-1 DO BEGIN
             dmy=STRSPLIT(dateStrings(i),'.',/EXTRACT)
+            IF N_ELEMENTS(dmy) EQ 1 THEN BEGIN ;format yyyy-mm-dd
+              dmy=STRSPLIT(dateStrings(i),'-',/EXTRACT)
+              dmy=REVERSE(dmy)
+            ENDIF
             dmy=LONG(dmy)
             dateId(i)=JULDAY(dmy(1), dmy(0), dmy(2))    ;month,day,year
           ENDFOR
