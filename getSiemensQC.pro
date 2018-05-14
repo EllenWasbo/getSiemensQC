@@ -17,7 +17,7 @@
 
 pro getSiemensQC,  GROUP_LEADER=bMain
 
-  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, cw_deciMark, btnTrans, btnSort, btnHeaders, newline
+  COMMON VAR, config, langu, tblRes, headers, colWids, cwType, curType, curCTtype, cw_deciMark, btnTrans, btnHeaders, newline;btnSort, 
 
   thisPath=FILE_DIRNAME(ROUTINE_FILEPATH('getSiemensQC'))+'\'
   RESTORE, thisPath+'config.dat'
@@ -30,52 +30,64 @@ pro getSiemensQC,  GROUP_LEADER=bMain
 
   xsz=700
 
-  bMain = WIDGET_BASE(TITLE='Extracting info from Siemens QC reports PET and CT', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=820, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.01', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
 
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
   btn_clear=WIDGET_BUTTON(file_menu, VALUE='Clear table', UVALUE='clear')
   btn_exit=WIDGET_BUTTON(file_menu, VALUe='Exit', UVALUE='Exit', ACCELERATOR='Ctrl+X', /SEPARATOR)
 
-  ml0=WIDGET_LABEL(bMain, VALUE='', YSIZE=20)
+  ml0=WIDGET_LABEL(bMain, VALUE='', YSIZE=10)
 
   bTop=WIDGET_BASE(bMain, /ROW)
   bRead=WIDGET_BASE(bTop, /COLUMN, XSIZE=xsz-10)
   lblRead=WIDGET_LABEL(bRead, VALUE='Read report', FONT='Arial*Bold*18')
-  bRead2=WIDGET_BASE(bRead, /ROW, FRAME=1, YSIZE=100)
-  mlR=WIDGET_LABEL(bRead2, VALUE='', XSIZE=120)
+  bRead2=WIDGET_BASE(bRead, /ROW, FRAME=1, YSIZE=115)
+  mlR=WIDGET_LABEL(bRead2, VALUE='', XSIZE=100)
   cwType=CW_BGROUP(bRead2,['PET','CT'], /EXCLUSIVE, LABEL_TOP='Report type...', SET_VALUE=1,FRAME=1, UVALUE='types')
   curType=1
+  curCTtype=1; 1 default, 2 = symbia T2
   mlA=WIDGET_LABEL(bRead2, VALUE='', XSIZE=30)
   btnReadClip=WIDGET_BUTTON(bRead2, VALUE='Read from clipboard', UVALUE='readClip', XSIZE=200)
   mlA1=WIDGET_LABEL(bRead2, VALUE='', XSIZE=30)
-  bInstructions=WIDGET_BASE(bRead2, /COLUMN, /ALIGN_RIGHT)
-  inst0=WIDGET_LABEL(bInstructions, VALUE='Instructions', XSIZE=150, FONT='Arial*Bold*12')
-  inst1=WIDGET_LABEL(bInstructions, VALUE='* Open a report (pdf or txt)', XSIZE=150)
-  inst2=WIDGET_LABEL(bInstructions, VALUE='* Select all text (Ctrl+A)', XSIZE=150)
-  inst3=WIDGET_LABEL(bInstructions, VALUE='* Copy to clipboard (Ctrl+C)', XSIZE=150)
-  inst4=WIDGET_LABEL(bInstructions, VALUE='* Press "Read from clipboard"', XSIZE=150)
-  inst5=WIDGET_LABEL(bInstructions, VALUE='* Repeat for all reports', XSIZE=150)
+  bInstructions=WIDGET_BASE(bRead2, /COLUMN, /ALIGN_LEFT)
+  inst0=WIDGET_LABEL(bInstructions, VALUE='Instructions', XSIZE=180, FONT='Arial*Bold*12')
+  inst1=WIDGET_LABEL(bInstructions, VALUE='* Open a report (pdf or txt)', XSIZE=180)
+  inst2=WIDGET_LABEL(bInstructions, VALUE='* Select all text (Ctrl+A)', XSIZE=180)
+  inst3=WIDGET_LABEL(bInstructions, VALUE='* Copy to clipboard (Ctrl+C)', XSIZE=180)
+  inst4=WIDGET_LABEL(bInstructions, VALUE='* Press "Read from clipboard"', XSIZE=180)
+  inst5=WIDGET_LABEL(bInstructions, VALUE='* Repeat for all reports', XSIZE=180)
   mlT=WIDGET_LABEL(bRead, VALUE='', YSIZE=10)
   btnReadExcel=WIDGET_BUTTON(bRead, VALUE='Read from txt files (automated)', UVALUE='readTxtFiles', XSIZE=200)
 
-  ml1=WIDGET_LABEL(bMain, VALUE='', YSIZE=20)
+  ml1=WIDGET_LABEL(bMain, VALUE='', YSIZE=15)
 
   headersPET=['Date','Partial','Full',$
     'Time Align','Calib Factor','Measured Randoms','Scanner Efficiency',$
     'Scatter Ratio','ECF','Time Alignment Residual', 'Time Alignment fit x','Time Alignment fit y',$
     'Phantom Pos x', 'Phantom Pos y']
-  headersCT=['Date','Tester name','Product Name','Serial Number',$
+  headersCT=['Date','Tester name','Product Name','Serial Number','Serial Tube A', 'Serial Tube B',$
     'HUwater head min','HUwater head max','HUwater body min','HUwater body max',$
     'Diff head max(abs)','Diff body max(abs)',$
     'Noise head max','Noise body max',$
     'Slice head min','Slice head max','Slice body min','Slice body max',$
-    'MTF50 B30f','MTF10 B30f','MTF50 H30s','MTF10 H30s','MTF50 H70h','MTF10 H70h','MTF50 U95u','MTF10 U95u']
-  headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT)
-  tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=470, row_labels=headers.(1), COLUMN_WIDTHS=80)
+    'MTF50 B smooth','MTF10 B smooth','MTF50 H smooth','MTF10 H smooth','MTF50 H sharp','MTF10 H sharp','MTF50 UHR','MTF10 UHR',$
+    'HUwater dblA min','HUwater dblA max','HUwater dblB min','HUwater dblB max',$
+    'Diff dblA max(abs)','Diff dblB max(abs)',$
+    'Noise dblA max','Noise dblB max',$
+    'Slice dblA min','Slice dblA max','Slice dblB min','Slice dblB max',$
+    'MTF50 dblA smooth','MTF10 dblA smooth','MTF50 dblB smooth','MTF10 dblB smooth']
+  headersCT_T2=['Date','Tester name','Product Name','Serial Number','Tube ID',$
+    'HUwater 110kV min','HUwater 110kV max','HUwater 130kV min','HUwater 130kV max',$
+    'Diff 110kV max(abs)','Diff 130kV max(abs)',$
+    'Noise 80kV','Noise 110kV','Noise 130kV',$
+    'Slice 1mm','Slice 1.5mm','Slice 2.5mm','Slice 4mm','Slice 5mm',$
+    'MTF50 B31s','MTF10 B31s','MTF50 H41s','MTF10 H41s','MTF50 U90s','MTF10 U90s']
+  headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT,'CT_T2', headersCT_T2)
+  tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=520, row_labels=headers.(1), COLUMN_WIDTHS=80)
 
   bCopy=WIDGET_BASE(bMain, /COLUMN, XSIZE=xsz-10)
   lblCopy=WIDGET_LABEL(bCopy, VALUE='Copy table to clipboard', FONT='Arial*Bold*18')
-  bCopy2=WIDGET_BASE(bCopy, /ROW, FRAME=1, YSIZE=100)
+  bCopy2=WIDGET_BASE(bCopy, /ROW, FRAME=1, YSIZE=115)
   bBtnBtm=WIDGET_BASE(bCopy2, /ROW)
   mlC0=WIDGET_LABEL(bBtnBtm, VALUE='', xSIZE=100)
   cw_deciMark=CW_BGROUP(bBtnBtm, ['. (point)',', (comma)'], /EXCLUSIVE, LABEL_TOP='Decimal mark...', SET_VALUE=1, FRAME=1, UVALUE='deci')
@@ -83,9 +95,9 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   bCopy3=WIDGET_BASE(bBtnBtm, /NONEXCLUSIVE, /COLUMN)
   btnTrans=WIDGET_BUTTON(bCopy3, VALUE='Transpose table when copied')
   btnHeaders=WIDGET_BUTTON(bCopy3, VALUE='Include headers')
-  btnSort=WIDGET_BUTTON(bCopy3, VALUE='Sort by date when copied')
+  ;btnSort=WIDGET_BUTTON(bCopy3, VALUE='Sort by date when copied')
   WIDGET_CONTROL, btnTrans, /SET_BUTTON
-  WIDGET_CONTROL, btnSort, /SET_BUTTON
+  ;WIDGET_CONTROL, btnSort, /SET_BUTTON
   btnCopyTbl=WIDGET_BUTTON(bBtnBtm, VALUE='Copy table to clipboard', UVALUE='copyTbl', XSIZE=200)
 
   WIDGET_CONTROL, bMain, /REALIZE
@@ -148,15 +160,32 @@ pro getSiemensQC_event, event
             WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
           END
           1:BEGIN; CT constancy
-            resu=readCTcons(clipb, config)
+            resu=readCTcons(clipb, config, '')
             strArrRes=resu.strArrRes
             IF resu.errMsg NE '' THEN sv=DIALOG_MESSAGE(resu.errMsg)
             ;IF N_TAGS(structRes) EQ 1 THEN sv=DIALOG_MESSAGE('Found no results for the tests in this text.') ELSE BEGIN
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
-            curTbl[empt(0),*]=TRANSPOSE(strArrRes)
-            IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
-            WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
+            
+            ;check size and empty?
+            proceed=1
+            IF N_ELEMENTS(strArrRes) NE N_ELEMENTS(headers.(curCTtype)) THEN BEGIN
+              IF empt(0) EQ 0 THEN BEGIN
+                IF curCTtype EQ 1 THEN curCTtype=2 ELSE curCTtype=1        
+                lab=STRARR(n_elements(headers.(1)))
+                lab[0:n_elements(headers.(curCTtype))-1]=headers.(curCTtype)            
+                WIDGET_CONTROL, tblRes, ROW_LABELS=lab
+              ENDIF ELSE BEGIN
+                sv=DIALOG_MESSAGE('There are two result-types for CT. The type of this file differ from those already read. Empty table before reading result-files of a different type.')
+                proceed=0
+              ENDELSE
+            ENDIF
+            
+            IF proceed THEN BEGIN
+              curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
+              IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
+              WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
+            ENDIF
           END
         ENDCASE
 
@@ -167,7 +196,6 @@ pro getSiemensQC_event, event
         IF adr(0) NE '' THEN BEGIN
 
           errArr=STRARR(N_ELEMENTS(adr))
-          WIDGET_CONTROL, cwType, GET_VALUE=type
 
           FOR i=0, N_ELEMENTS(adr)-1 DO BEGIN
             OPENR, lun, adr(i), /GET_LUN
@@ -183,7 +211,7 @@ pro getSiemensQC_event, event
             WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
             empt=WHERE(curTbl[*,0] EQ '')
 
-            CASE type OF
+            CASE curType OF
               0:BEGIN; PET
                 resu=readPETdailyQC(array, config)
                 strArrRes=resu.strArrRes
@@ -194,10 +222,25 @@ pro getSiemensQC_event, event
                 curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
               END
               1:BEGIN; CT constancy
-                resu=readCTcons(array, config)
+                resu=readCTcons(array, config, FILE_BASENAME(adr(i)))
                 strArrRes=resu.strArrRes
                 errArr(i)=resu.errMsg
-                curTbl[empt(0),*]=TRANSPOSE(strArrRes)
+                
+                ;check size and empty?
+                proceed=1
+                IF N_ELEMENTS(strArrRes) NE N_ELEMENTS(headers.(curCTtype)) THEN BEGIN
+                  IF empt(0) EQ 0 THEN BEGIN
+                    IF curCTtype EQ 1 THEN curCTtype=2 ELSE curCTtype=1
+                    lab=STRARR(n_elements(headers.(1)))
+                    lab[0:n_elements(headers.(curCTtype))-1]=headers.(curCTtype)
+                    WIDGET_CONTROL, tblRes, ROW_LABELS=lab
+                  ENDIF ELSE BEGIN
+                    errArr(i)='File type differ from those already read. Empty table before reading result-files of a different type.'
+                    proceed=0
+                  ENDELSE
+                ENDIF
+
+                IF proceed THEN curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
               END
             ENDCASE
             IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
@@ -223,24 +266,24 @@ pro getSiemensQC_event, event
         szT=SIZE(curTbl, /DIMENSIONS)
 
         ;sort by date? format dd.mm.yyyy
-        IF WIDGET_INFO(btnSort, /BUTTON_SET) THEN BEGIN
-          dateStrings=curTbl[*,0]
-          dateId=INTARR(szT(0))
-          FOR i=0, szT(0)-1 DO BEGIN
-            dmy=STRSPLIT(dateStrings(i),'.',/EXTRACT)
-            IF N_ELEMENTS(dmy) EQ 1 THEN BEGIN ;format yyyy-mm-dd
-              dmy=STRSPLIT(dateStrings(i),'-',/EXTRACT)
-              dmy=REVERSE(dmy)
-            ENDIF
-            dmy=LONG(dmy)
-            dateId(i)=JULDAY(dmy(1), dmy(0), dmy(2))    ;month,day,year
-          ENDFOR
-          sorted=SORT(dateID)
-          FOR j=0, szT(1)-1 DO BEGIN
-            temp=curTbl[*,j]
-            curTbl[*,j]=temp(sorted)
-          ENDFOR
-        ENDIF
+;        IF WIDGET_INFO(btnSort, /BUTTON_SET) THEN BEGIN
+;          dateStrings=curTbl[*,0]
+;          dateId=INTARR(szT(0))
+;          FOR i=0, szT(0)-1 DO BEGIN
+;            dmy=STRSPLIT(dateStrings(i),'.',/EXTRACT)
+;            IF N_ELEMENTS(dmy) EQ 1 THEN BEGIN ;format yyyy-mm-dd
+;              dmy=STRSPLIT(dateStrings(i),'-',/EXTRACT)
+;              dmy=REVERSE(dmy)
+;            ENDIF
+;            dmy=LONG(dmy)
+;            dateId(i)=JULDAY(dmy(1), dmy(0), dmy(2))    ;month,day,year
+;          ENDFOR
+;          sorted=SORT(dateID)
+;          FOR j=0, szT(1)-1 DO BEGIN
+;            temp=curTbl[*,j]
+;            curTbl[*,j]=temp(sorted)
+;          ENDFOR
+;        ENDIF
 
         ;decimal mark
         WIDGET_CONTROL, cw_deciMark, GET_VALUE=deci
@@ -256,7 +299,8 @@ pro getSiemensQC_event, event
         newTable=STRARR(szT(0)+1,szT(1))
         newTable[1:szT(0),*]=curTbl
         WIDGET_CONTROL, cwType, GET_VALUE=type
-        newTable[0,0:N_ELEMENTS(headers.(type))-1]=TRANSPOSE(headers.(type))
+        IF type EQ 1 THEN tabno=curCTtype ELSE tabno=0
+        newTable[0,0:N_ELEMENTS(headers.(tabno))-1]=TRANSPOSE(headers.(tabno))
         IF ~WIDGET_INFO(btnHeaders, /BUTTON_SET) THEN newTable=newTable[1:szT(0),*]
 
         ;transpose
