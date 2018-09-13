@@ -191,7 +191,7 @@ function readCTcons, clipres, config, filename
                     ENDIF
                   ENDELSE
 
-                  IF tt EQ 0 THEN resVectST[0+a*2:1+a*2]=[MIN(res),MAX(res)] ELSE resVectSTdbl=[MIN(res),MAX(res),MIN(res2),MAX(res2)] 
+                  IF tt EQ 0 THEN resVectST[0+a*2:1+a*2]=[MIN(res),MAX(res)] ELSE resVectSTdbl=[MIN(res),MAX(res),MIN(res2),MAX(res2)]
                 ENDIF
               ENDFOR
             ENDIF
@@ -373,14 +373,16 @@ function readCTcons, clipres, config, filename
         IF N_ELEMENTS(rownoMTF) EQ 2 THEN BEGIN
           nextTest=WHERE(STRMATCH(clipres[rownoMTF(1):-1], config.CT.(langu)(14),/FOLD_CASE) EQ 1)
           IF N_ELEMENTS(nextTest) GT 1 THEN nextTest=nextTest(1) ELSE nextTest=-1
-          
+
           strTestResort=[strTest(1),strTest(0),strTest(2)]
           FOR a=0, 2 DO BEGIN
             rowno=WHERE(shortres[rownoMTF(1):-1] EQ STRMID(strTestResort(a), 0, nShortRes))
             IF rowno(0) NE -1 THEN BEGIN
-              actRowNos=WHERE(rowno LT nextTest)
-              rowno=rowno(actRowNos)
-              
+              IF nextTest NE -1 THEN BEGIN
+                actRowNos=WHERE(rowno LT nextTest)
+                rowno=rowno(actRowNos)
+              ENDIF
+
               ccc=0
               IF a NE 1 AND N_ELEMENTS(rowno) EQ 2 THEN ccc=1; ccc=1 for sharpest (a=2) with UHR or body (a=0) with double tube
               rowno=rowno+rownoMTF(1)
@@ -435,7 +437,7 @@ function readCTcons, clipres, config, filename
           ;structRes=CREATE_STRUCT(structRes, 'MTF', resVectMTF)
 
         ENDIF
-        
+
         IF MIN(resVectWA) NE -1000. THEN strArrRes[6:6+3]=STRING(resVectWA, FORMAT='(f0.2)')
         IF MIN(resVectHO) NE -1000. THEN strArrRes[10:10+1]=STRING(resVectHO, FORMAT='(f0.2)')
         IF MIN(resVectNO) NE -1000. THEN strArrRes[12:12+1]=STRING(resVectNO, FORMAT='(f0.2)')
@@ -463,28 +465,28 @@ function readCTcons, clipres, config, filename
 
       ENDIF ELSE BEGIN;Symbia T2
 
-        ;slice thickness 
+        ;slice thickness
         IF N_ELEMENTS(rownoST) EQ 2 THEN BEGIN
           resVectST=FLTARR(5)-1000.
           ;assuming 1mm, 1.5mm, 2.5mm, 4mm, 5mm
-          
+
           rownoRes=WHERE(STRMATCH(shortres[rownoST(1):-1], 'Result', /FOLD_CASE) EQ 1)
-          
+
           nextTest=WHERE(STRMATCH(clipres[rownoST(1):-1], config.CT.(langu)(14),/FOLD_CASE) EQ 1)
           IF N_ELEMENTS(nextTest) GT 1 THEN nextTest=nextTest(1) ELSE nextTest=-1
-          
+
           IF nextTest NE -1 THEN BEGIN
             actRes=WHERE(rownoRes LT nextTest)
             rownoRes=rownoRes(actRes)
           ENDIF
-          
+
           res=FLTARR(2,5)
           IF N_ELEMENTS(rownoRes) GE 10 THEN BEGIN;result twice before each
             FOR st=0, 4 DO BEGIN
-             rowno=rownoST(1)+rownoRes(st*2)
-             addSlice=WHERE(shortres5[rowno(0):-1] EQ sliceStr)
+              rowno=rownoST(1)+rownoRes(st*2)
+              addSlice=WHERE(shortres5[rowno(0):-1] EQ sliceStr)
 
-             IF addSlice(0) NE -1 THEN BEGIN
+              IF addSlice(0) NE -1 THEN BEGIN
                 addSlice=addSlice[0:1];two slices for T2
                 FOR i=0, 1 DO BEGIN
                   clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)),' ',/EXTRACT)
@@ -498,18 +500,18 @@ function readCTcons, clipres, config, filename
                 ENDFOR
                 resVectST[st]=MEAN(res[*,st])
               ENDIF
-            
+
             ENDFOR
           ENDIF
         ENDIF
-        
+
         ;homogeneity/water
-        IF N_ELEMENTS(rownoHO) EQ 2 THEN BEGIN
+        IF N_ELEMENTS(rownoHO) GE 2 THEN BEGIN
           ;assuming 110kV, 130kV
           rownoRes=WHERE(STRMATCH(shortres[rownoHO(1):-1], 'Result', /FOLD_CASE) EQ 1)
           IF rownoRes(1) EQ rownoRes(0)+1 THEN rownoRes=[rownoRes(0),rownoRes(2)]
           res=FLTARR(5,4); center,diff3,6,9,12 2 slices twice
-                
+
           IF N_ELEMENTS(rownoRes) GE 2 THEN BEGIN
             FOR te=0, 1 DO BEGIN
               rowno=rownoHO(1)+rownoRes(te)
@@ -527,15 +529,17 @@ function readCTcons, clipres, config, filename
                     res(4,2*te+i)=FLOAT(clipSplit(9))
                   ENDIF
                   IF N_ELEMENTS(clipSplit) EQ 1 THEN BEGIN; file from ~2017+, tolerance in between
-                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+2),' ',/EXTRACT)
+                    addEx=0
+                    IF clipres(rowno(0)-1) EQ 'Test Result' THEN addEx=1 ;syngo CT 2007E
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+2+addEx),' ',/EXTRACT)
                     res(0,2*te+i)=FLOAT(clipSplit(0))
-                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+4),' ',/EXTRACT)
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+4+addEx),' ',/EXTRACT)
                     res(1,2*te+i)=FLOAT(clipSplit(0))
-                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+6),' ',/EXTRACT)
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+6+addEx),' ',/EXTRACT)
                     res(2,2*te+i)=FLOAT(clipSplit(0))
-                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+8),' ',/EXTRACT)
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+8+addEx),' ',/EXTRACT)
                     res(3,2*te+i)=FLOAT(clipSplit(0))
-                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+10),' ',/EXTRACT)
+                    clipSplit=STRSPLIT(clipres(rowno(0)+addSlice(i)+10+addEx),' ',/EXTRACT)
                     res(4,2*te+i)=FLOAT(clipSplit(0))
                   ENDIF
                 ENDFOR
@@ -572,12 +576,12 @@ function readCTcons, clipres, config, filename
           ;'MTF50 B smooth','MTF10 B smooth','MTF50 H smooth','MTF10 H smooth','MTF50 H sharp','MTF10 H sharp','MTF50 UHR','MTF10 UHR'
           cc=[2,1,0]
           rownoRes=WHERE(STRMATCH(shortres[rownoMTF(1):-1], 'Result*', /FOLD_CASE) EQ 1)
-          
+
           IF nextTest NE -1 THEN BEGIN
             actRes=WHERE(rownoRes LT nextTest)
             rownoRes=rownoRes(actRes)
           ENDIF
-          
+
           res=FLTARR(2,2)
           IF N_ELEMENTS(rownoRes) EQ 3 THEN BEGIN
             resVectMTF=FLTARR(6)

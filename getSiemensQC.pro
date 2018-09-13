@@ -30,7 +30,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
 
   xsz=700
 
-  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.01', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
+  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.02', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=50, YOFFSET=50,/TLB_KILL_REQUEST_EVENTS)
 
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
   btn_clear=WIDGET_BUTTON(file_menu, VALUE='Clear table', UVALUE='clear')
