@@ -18,12 +18,12 @@ function readPETdailyQC, clipres, config
 errMsg=''
   
   shortres=STRARR(N_ELEMENTS(clipres))
-  FOR i=0, N_ELEMENTS(clipres)-1 DO shortres(i)=STRMID(clipres(i), 0, 10)
+  FOR i=0, N_ELEMENTS(clipres)-1 DO shortres(i)=STRMID(clipres(i), 0, 9)
   resVect=FLTARR(9)
 
   IF clipres(0) EQ 'System Quality Report' THEN BEGIN
   ;date
-  rowno=WHERE(shortres EQ 'Scan Date:')
+  rowno=WHERE(shortres EQ 'Scan Date')
   date=STRSPLIT(clipres(rowno),',',/EXTRACT)
   dateMD=STRSPLIT(date(0),' ',/EXTRACT)
   IF N_ELEMENTS(dateMD) GE 4 THEN BEGIN
@@ -35,22 +35,27 @@ errMsg=''
     date=day+'.'+month+'.'+year
   ENDIF ELSE date=''
 
-  rowno=WHERE(shortres EQ 'Partial se')
+  rowno=WHERE(shortres EQ 'Partial s')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     IF clipSplit(-1) EQ 'true' THEN part='X' ELSE part=''
   ENDIF ELSE part=''
-  rowno=WHERE(shortres EQ 'Full setup')
+  rowno=WHERE(shortres EQ 'Full setu')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     IF clipSplit(-1) EQ 'true' THEN full='X' ELSE full=''
   ENDIF ELSE full=''
-  rowno=WHERE(shortres EQ 'Time Align')
+  rowno=WHERE(shortres EQ 'Time Alig')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     IF clipSplit(-1) EQ 'true' THEN timA='X' ELSE timA=''
   ENDIF ELSE timA=''
-  rowno=WHERE(shortres EQ 'Calibratio')
+  rowno=WHERE(shortres EQ 'ICS Name ')
+  IF rowno(0) NE -1 THEN BEGIN
+    clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
+    icsName=clipSplit(-1)
+  ENDIF ELSE icsName=''
+  rowno=WHERE(shortres EQ 'Calibrati')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     calib=FLOAT(clipSplit(-1))
@@ -58,21 +63,21 @@ errMsg=''
 
 
   ;Block Noise 3 [crystal] 0 [crystal] 0 Blocks
-  rowno=WHERE(shortres EQ 'Block Nois')
+  rowno=WHERE(shortres EQ 'Block Noi')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block noise out of range.']
   ENDIF
 
   ;Block Efficiency 120 [%] 80 [%] 0 Blocks
-  rowno=WHERE(shortres EQ 'Block Effi')
+  rowno=WHERE(shortres EQ 'Block Eff')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block efficiency out of range.']
   ENDIF
 
   ;Randoms 115 [%] 85 [%] 103.8 [%] Passed
-  rowno=WHERE(shortres EQ 'Randoms 11')
+  rowno=WHERE(shortres EQ 'Randoms 1')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     measuredRandoms=FLOAT(clipSplit(-3))
@@ -80,7 +85,7 @@ errMsg=''
   resVect(0)=measuredRandoms
 
   ;Scanner Efficiency 47.32 [cps/Bq/cc] 25.48 [cps/Bq/cc] 37.7 [cps/Bq/cc] Passed
-  rowno=WHERE(shortres EQ 'Scanner Ef')
+  rowno=WHERE(shortres EQ 'Scanner E')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     scannerEff=FLOAT(clipSplit(-3))
@@ -88,7 +93,7 @@ errMsg=''
   resVect(1)=scannerEff
 
   ;Scatter Ratio 35.2 [%] 28.8 [%] 30.7 [%] Passed
-  rowno=WHERE(shortres EQ 'Scatter Ra')
+  rowno=WHERE(shortres EQ 'Scatter R')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)),' ',/EXTRACT)
     scatterRat=FLOAT(clipSplit(-3))
@@ -113,7 +118,7 @@ errMsg=''
   ;      Image Plane
   ;      Efficiency 5 [%] -5 [%] 0 Planes
   ;      out of range Passed
-  rowno=WHERE(shortres EQ 'Image Plan')
+  rowno=WHERE(shortres EQ 'Image Pla')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)+1),' ',/EXTRACT)
     IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Image plane efficiency out of range.']
@@ -122,7 +127,7 @@ errMsg=''
   ;      Block Timing
   ;      Offset 0.5 [bin] 0 [bin] 0 Blocks
   ;      out of range Passed
-  rowno=WHERE(shortres EQ 'Block Timi')
+  rowno=WHERE(shortres EQ 'Block Tim')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)+1),' ',/EXTRACT)
     IF clipSplit(-2) NE '0' THEN errMsg=[errMsg,'Block timing offset out of range.']
@@ -137,7 +142,7 @@ errMsg=''
   ;      Time Alignment Fit
   ;      (x / y) 2 [mm] 0 [mm] 0.38 [mm] /
   ;      0.41 [mm] Passed
-  rowno=WHERE(shortres EQ 'Time Align')
+  rowno=WHERE(shortres EQ 'Time Alig')
   IF N_ELEMENTS(rowno) GE 3 THEN BEGIN
     IF rowno(1) NE -1 THEN BEGIN
       clipSplit=STRSPLIT(clipres(rowno(1)+1),' ',/EXTRACT)
@@ -158,7 +163,7 @@ errMsg=''
   ;      Axis Value [mm]
   ;      X -0.2
   ;      Y -1.9
-  rowno=WHERE(shortres EQ 'Phantom po')
+  rowno=WHERE(shortres EQ 'Phantom p')
   IF rowno(0) NE -1 THEN BEGIN
     clipSplit=STRSPLIT(clipres(rowno(0)+2),' ',/EXTRACT)
     phantomPosx=FLOAT(clipSplit(1))
@@ -168,7 +173,7 @@ errMsg=''
   ENDIF ELSE phantomPos=[-1,-1]
   resVect[7:8]=phantomPos
 
-  resArr=[date, part, full, timA, STRING(calib),STRING(resVect)]
+  resArr=[date, icsName, part, full, timA, STRING(calib),STRING(resVect)]
   
   ENDIF ELSE resArr=STRARR(14)
    

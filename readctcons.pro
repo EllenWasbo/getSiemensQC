@@ -96,7 +96,7 @@ function readCTcons, clipres, config, filename
       strArrRes(2)=STRMID(clipres(rowno(0)),STRLEN(config.CT.(langu)(11)))
       ;serial Number
       rowno=WHERE(STRMATCH(clipres, config.CT.(langu)(12)+'*', /FOLD_CASE) EQ 1)
-      strArrRes(3)=STRMID(clipres(rowno(0)),STRLEN(config.CT.(langu)(12)))
+      strArrRes(3)=STRTRIM(STRMID(clipres(rowno(0)),STRLEN(config.CT.(langu)(12))),2)
       ;tube assembly A and B serialnumber
       rowno=WHERE(STRMATCH(clipres, config.CT.(langu)(13)+'*', /FOLD_CASE) EQ 1)
       IF N_ELEMENTS(rowno) EQ 2 THEN BEGIN
