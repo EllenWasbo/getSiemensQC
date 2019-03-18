@@ -1,0 +1,112 @@
+let
+
+
+//vendor test result-files from getSiemensQC
+
+    ///////CTXX
+    CTXXvSource = Csv.Document(File.Contents("......your output file address.....txt"),[Delimiter="#(tab)", Columns=26, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    CTXXvfirstRowHeaders = Table.PromoteHeaders(CTXXvSource, [PromoteAllScalars=true]),
+    CTXXvchangeType = Table.TransformColumnTypes(CTXXvfirstRowHeaders,{{"Date", type date}, {"Serial Tube A", Int64.Type},  
+        {"HUwater head min", type number}, {"HUwater head max", type number}, {"HUwater body min", type number}, {"HUwater body max", type number}, 
+        {"Diff head max(abs)", type number}, {"Diff body max(abs)", type number}, {"Noise head max", type number}, {"Noise body max", type number}, 
+        {"MTF50 B smooth", type number}, {"MTF50 H sharp", type number}, {"MTF50 UHR", type number}}), 
+    
+    //calculate difference between rows
+    CTXXvaddIndex=Table.AddIndexColumn(CTXXvchangeType, "Index",0,1),
+    CTXXvaddPrevValue=Table.AddColumn(CTXXvaddIndex,"PrevTube", each if [Index] > 0 then CTXXvaddIndex{[Index]-1}[Serial Tube A] else CTXXvaddIndex{[Index]}[Serial Tube A]),
+    CTXXvaddDiff=Table.AddColumn(CTXXvaddPrevValue,"TubeDiff", each if [PrevTube]<>null and [Serial Tube A]<>null then [PrevTube]-[Serial Tube A] else 0),
+    CTXXvtubeReplace=Table.AddColumn(CTXXvaddDiff,"TubeReplaceA", each if [Index]>1 and CTXXvaddDiff{[Index]-1}[TubeDiff]<>0 then 2 else 0),
+    CTXXvremoveDiffColumns=Table.RemoveColumns(CTXXvtubeReplace, {"PrevTube","TubeDiff"}),
+    
+    CTXXvaddApp = Table.AddColumn(CTXXvremoveDiffColumns, "App", each "CT lab XX"),   
+
+    ///////CT dual source (flash)  
+    CTdualvSource = Csv.Document(File.Contents("......your output file address.....txt"),[Delimiter="#(tab)", Columns=42, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    CTdualvfirstRowHeaders = Table.PromoteHeaders(CTdualvSource, [PromoteAllScalars=true]),
+    CTdualvchangeType = Table.TransformColumnTypes(CTdualvfirstRowHeaders,{{"Date", type date}, {"Serial Tube A", Int64.Type}, {"Serial Tube B", Int64.Type}, 
+        {"HUwater head min", type number}, {"HUwater head max", type number}, {"HUwater body min", type number}, {"HUwater body max", type number}, 
+        {"Diff head max(abs)", type number}, {"Diff body max(abs)", type number}, {"Noise head max", type number}, {"Noise body max", type number}, 
+        {"MTF50 B smooth", type number}, {"MTF50 H sharp", type number},{"MTF50 UHR", type number}, 
+        {"HUwater dblA min", type number},{"HUwater dblA max",type number},{"HUwater dblB min", type number},{"HUwater dblB max", type number},
+        {"Diff dblA max(abs)",type number},{"Diff dblB max(abs)",type number},{"Noise dblA max",type number},{"Noise dblB max",type number},
+        {"MTF50 dblA smooth",type number},{"MTF50 dblB smooth",type number}}), 
+    
+    //calculate difference between rows
+    CTdualvaddIndex=Table.AddIndexColumn(CTdualvchangeType, "Index",0,1),
+    CTdualvaddPrevAValue=Table.AddColumn(CTdualvaddIndex,"PrevTubeA", each if [Index] > 1 then CTdualvaddIndex{[Index]-1}[Serial Tube A] else CTdualvaddIndex{[Index]}[Serial Tube A]),
+    CTdualvaddPrevBValue=Table.AddColumn(CTdualvaddPrevAValue,"PrevTubeB", each if [Index] > 1 then CTdualvaddIndex{[Index]-1}[Serial Tube B] else CTdualvaddIndex{[Index]}[Serial Tube B]),
+    CTdualvaddDiffA=Table.AddColumn(CTdualvaddPrevBValue,"TubeDiffA", each if [PrevTubeA]<>null and [Serial Tube A]<>null then [PrevTubeA]-[Serial Tube A] else 0),
+    CTdualvaddDiffB=Table.AddColumn(CTdualvaddDiffA,"TubeDiffB", each if [PrevTubeB]<>null and [Serial Tube B]<>null then [PrevTubeB]-[Serial Tube B] else 0),
+    CTdualvtubeReplaceA=Table.AddColumn(CTdualvaddDiffB,"TubeReplaceA", each if [Index]>1 and CTdualvaddDiffB{[Index]-1}[TubeDiffA]<>0 then 2 else 0),
+    CTdualvtubeReplaceB=Table.AddColumn(CTdualvtubeReplaceA,"TubeReplaceB", each if [Index]>1 and CTdualvaddDiffB{[Index]-1}[TubeDiffB]<>0 then 2 else 0),
+    CTdualvremoveDiffColumns=Table.RemoveColumns(CTdualvtubeReplaceB, {"PrevTubeA","PrevTubeB","TubeDiffA","TubeDiffB"}),
+    
+    CTdualvaddDual = Table.AddColumn(CTdualvremoveDiffColumns, "Dual", each "CT lab NN"),
+    CTdualvaddApp = Table.AddColumn(CTdualvaddDual, "App", each "CT lab NN"),
+
+    ///////CT Symbia
+    CTSPECTvSource = Csv.Document(File.Contents("......your output file address.....txt"),[Delimiter="#(tab)", Columns=25, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    CTSPECTvfirstRowHeaders = Table.PromoteHeaders(CTSPECTvSource, [PromoteAllScalars=true]),
+    CTSPECTvRemove = Table.RemoveColumns(CTSPECTvfirstRowHeaders,{"HUwater 110kV min","HUwater 110kV max","Diff 110kV max(abs)","Noise 80kV","Noise 110kV","Slice 1mm","Slice 1.5mm","Slice 2.5mm","Slice 4mm","Slice 5mm","MTF10 B31s","MTF50 H41s","MTF10 H41s","MTF10 U90s"}),
+    CTSPECTvchangeType = Table.TransformColumnTypes(CTSPECTvRemove,{{"Date", type date}, {"Tube ID", Int64.Type},  
+        {"HUwater 130kV min", type number}, {"HUwater 130kV max", type number}, 
+        {"Diff 130kV max(abs)", type number}, {"Noise 130kV", type number},
+        {"MTF50 B31s", type number}, {"MTF50 U90s", type number}}),  
+    CTSPECTvRename = Table.RenameColumns(CTSPECTvchangeType,{{"Tube ID", "Serial Tube A"}, 
+        {"HUwater 130kV min", "HUwater body min"}, {"HUwater 130kV max", "HUwater body max"}, {"Diff 130kV max(abs)", "Diff body max(abs)"},{"Noise 130kV", "Noise body max"},
+        {"MTF50 B31s", "MTF50 B smooth"},{"MTF50 U90s", "MTF50 UHR"}}),
+
+    
+    //calculate difference between rows
+    CTSPECTvaddIndex=Table.AddIndexColumn(CTSPECTvRename, "Index",0,1),
+    CTSPECTvaddPrevValue=Table.AddColumn(CTSPECTvaddIndex,"PrevTube", each if [Index] > 0 then CTSPECTvaddIndex{[Index]-1}[Serial Tube A] else CTSPECTvaddIndex{[Index]}[Serial Tube A]),
+    CTSPECTvaddDiff=Table.AddColumn(CTSPECTvaddPrevValue,"TubeDiff", each if [PrevTube]<>null and [Serial Tube A]<>null then [PrevTube]-[Serial Tube A] else 0),
+    CTSPECTvtubeReplace=Table.AddColumn(CTSPECTvaddDiff,"TubeReplaceA", each if [Index]>1 and CTSPECTvaddDiff{[Index]-1}[TubeDiff]<>0 then 2 else 0),
+    CTSPECTvremoveDiffColumns=Table.RemoveColumns(CTSPECTvtubeReplace, {"PrevTube","TubeDiff"}),
+    
+    CTSPECTvaddApp = Table.AddColumn(CTSPECTvremoveDiffColumns, "App", each "CT Symbia"),
+
+
+    /////// vendor tables combine and postprocess
+    CombinedVendor=Table.Combine({CTXXvaddApp,CTdualvaddApp,CTSPECTvaddApp}),
+
+    removeVendorColumns= Table.RemoveColumns(CombinedVendor,{"Tester name", "Product Name","Serial Number","Serial Tube A", "Serial Tube B",
+        "Slice head min", "Slice head max", "Slice body min", "Slice body max", 
+        "MTF10 B smooth", "MTF50 H smooth", "MTF10 H smooth", "MTF10 H sharp","MTF10 UHR", 
+        "Slice dblA min","Slice dblA max","Slice dblB min","Slice dblB max",
+        "MTF10 dblA smooth","MTF10 dblB smooth"}),
+    renameVendorColumns=Table.PrefixColumns(removeVendorColumns, "v"), //to be able to combine with local tests and differ between vendor and local test
+    replaceA4=Table.AddColumn(renameVendorColumns, "TubeReplaceA4", each 2*[v.TubeReplaceA], type number),
+    replaceA9=Table.AddColumn(replaceA4, "TubeReplaceA9", each 4.5*[v.TubeReplaceA], type number),
+    replaceB4=Table.AddColumn(replaceA9, "TubeReplaceB4", each 2*[v.TubeReplaceB], type number),
+    replaceB9=Table.AddColumn(replaceB4, "TubeReplaceB9", each 4.5*[v.TubeReplaceB], type number),
+    ProcessedVendor=Table.RenameColumns(replaceB9, {{"v.Date","Date"},{"v.App","App"},{"v.Index","Index"}}),
+
+    //////// combine local and vendor
+    //Combined=Table.Combine({ProcessedLocal,ProcessedVendor}),
+
+    //Add hours to data from same date to visualize all measurementes separately, replace Date column with this DateTime column as first column
+    AddIdx=Table.AddIndexColumn(ProcessedVendor, "IndexAll", 1, 1),
+    GroupRows=Table.Group(AddIdx,{"Date"},{{"Count", each Table.AddIndexColumn((_), "SubIndex", 1,1) }}),
+    allCols=Table.ColumnNames(AddIdx),
+    redCols=List.Combine({List.RemoveMatchingItems(allCols,{"Date"}),{"SubIndex"}}),
+    ExpandCount = Table.ExpandTableColumn(GroupRows, "Count", redCols),
+    AddDuration=Table.AddColumn(ExpandCount, "Time", each #time(0,0,0)+#duration(0,[SubIndex],0,0), type time),
+    ChangeTypeDate = Table.TransformColumnTypes(AddDuration,{{"Date", type date}}),
+    AddDateTime=Table.AddColumn(ChangeTypeDate, "DateTime", each [Date]&[Time], type datetime),
+    ColumnNames=Table.ColumnNames(AddDateTime),
+    ReorderedList=List.Combine({{"DateTime"},List.RemoveMatchingItems(ColumnNames,{"DateTime"})}),
+    ReorderColumns=Table.ReorderColumns(AddDateTime, ReorderedList),
+    RemoveColumns=Table.RemoveColumns(ReorderColumns, {"SubIndex","Index","Date","Time"}),
+
+    ChangeType=Table.TransformColumnTypes(RemoveColumns, {{"v.HUwater head min", type number},{"v.HUwater head max", type number},{"v.HUwater body min", type number}, {"v.HUwater body max", type number},   
+        {"v.Diff head max(abs)", type number},{"v.Diff body max(abs)", type number}, {"v.Noise head max", type number},{"v.Noise body max", type number},
+        {"v.MTF50 B smooth", type number}, {"v.MTF50 H sharp", type number}, {"v.MTF50 UHR", type number},
+        {"v.HUwater dblA min", type number}, {"v.HUwater dblA max", type number}, {"v.HUwater dblB min", type number},{"v.HUwater dblB max", type number},
+        {"v.Diff dblA max(abs)", type number}, {"v.Diff dblB max(abs)", type number}, {"v.Noise dblA max", type number}, {"v.Noise dblB max", type number},
+        {"v.MTF50 dblA smooth", type number}, {"v.MTF50 dblB smooth", type number},
+        {"v.TubeReplaceA", type number},{"v.TubeReplaceB", type number}, {"TubeReplaceA4",type number},{"TubeReplaceA9",type number} ,{"TubeReplaceB4",type number} ,{"TubeReplaceB9",type number}  }),
+    SortTable=Table.Sort(ChangeType, {{"App", Order.Ascending},{"DateTime", Order.Ascending}})
+ 
+in
+    SortTable

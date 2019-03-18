@@ -14,6 +14,18 @@
 ;You should have received a copy of the GNU General Public License
 ;along with this program; if not, write to the Free Software
 ;Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+function formatDDMMYYYY, str
+  strSpl=STRSPLIT(str,'-',/EXTRACT)
+  strDMY=str
+  IF N_ELEMENTS(strSpl) EQ 3 THEN BEGIN
+    IF STRLEN(strSpl(0)) EQ 4 THEN BEGIN
+      strDMY=strSpl(2)+'.'+strSpl(1)+'.'+strSpl(0)
+    ENDIF
+  ENDIF
+  return, strDMY
+end
+
 function readCTcons, clipres, config, filename
   errMsg=''
   ;tolerance
@@ -84,7 +96,7 @@ function readCTcons, clipres, config, filename
       ;ENDIF ELSE BEGIN
       date=STRSPLIT(clipres(2),' ',/EXTRACT)
       IF date(0) EQ 'System' THEN date=STRSPLIT(clipres(3),' ',/EXTRACT);correct for some Symbia files
-      date=date(0)
+      date=formatDDMMYYYY(date(0)); ensure format = dd.mm.yyyy 
       strArrRes(0)=date
       ;ENDELSE
 
