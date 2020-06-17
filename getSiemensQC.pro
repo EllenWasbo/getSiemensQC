@@ -32,7 +32,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   xoffset=50
   yoffset=50
 
-  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.2', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=xoffset, YOFFSET=yoffset,/TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
+  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.3', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=xoffset, YOFFSET=yoffset,/TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
 
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
   btn_appPET=WIDGET_BUTTON(file_menu, VALUE='Configure automatic append to txt-file PET', UVALUE='addAppendTempPET')

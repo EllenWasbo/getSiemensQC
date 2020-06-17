@@ -113,8 +113,13 @@ function readCTcons, clipres, config, filename
       rowno=WHERE(STRMATCH(clipres, config.CT.(langu)(13)+'*', /FOLD_CASE) EQ 1)
       IF N_ELEMENTS(rowno) EQ 2 THEN BEGIN
         IF rowno(1) EQ rowno(0)+1 THEN BEGIN;as newer files where table with three columns and both tubes in table even though only one tube
-          strArrRes(4)=clipres(rowno(0)+13)
-          strArrRes(5)=clipres(rowno(1)+13)
+          IF clipres(rowno(0)+2) EQ config.CT.(langu)(12) THEN BEGIN;seen at least for Drive
+            strArrRes(4)=clipres(rowno(0)+3)
+            strArrRes(5)=clipres(rowno(0)+4)      
+          ENDIF ELSE BEGIN
+            strArrRes(4)=clipres(rowno(0)+13)
+            strArrRes(5)=clipres(rowno(1)+13)
+          ENDELSE
         ENDIF
       ENDIF ELSE BEGIN
         IF rowno(0) NE -1 AND N_ELEMENTS(rowno) EQ 1 THEN BEGIN

@@ -1,0 +1,27 @@
+let
+    Source = Csv.Document(File.Contents("...your results txt file...txt"),[Delimiter="#(tab)", Columns=15, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    useFirstRowAsHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+    #"Changed Type" = Table.TransformColumnTypes(useFirstRowAsHeaders,{{"Date", type date}}),
+    //Add hours to data from same date to visualize all measurementes separately, replace Date column with this DateTime column as first column
+    AddIndex=Table.AddIndexColumn(#"Changed Type", "Index", 1, 1),
+    GroupRows=Table.Group(AddIndex,{"Date"},{{"Count", each Table.AddIndexColumn((_), "SubIndex", 1,1) }}),
+    ExpandCount = Table.ExpandTableColumn(GroupRows, "Count",{"Partial","Full", "Time Align", "Calib Factor", "Measured Randoms", 
+"Scanner Efficiency", "Scatter Ratio", "ECF", "Time Alignment Residual", "Time Alignment fit x", "Time Alignment fit y", "Phantom Pos x", 
+"Phantom Pos y","SubIndex"}),
+    AddDuration=Table.AddColumn(ExpandCount, "Time", each #time(0,0,0)+#duration(0,[SubIndex],0,0), type time),
+    ChangeTypeDate = Table.TransformColumnTypes(AddDuration,{{"Date", type date}}),
+    AddDateTime=Table.AddColumn(ChangeTypeDate, "DateTime", each [Date]&[Time], type datetime),
+    ColumnNames=Table.ColumnNames(AddDateTime),
+    ReorderedList=List.Combine({{"DateTime"},List.RemoveMatchingItems(ColumnNames,{"DateTime"})}),
+    ReorderColumns=Table.ReorderColumns(AddDateTime, ReorderedList),
+    RemoveColumns=Table.RemoveColumns(ReorderColumns, {"SubIndex","Date","Time"}),
+    //PET specific changes
+    #"Replaced Value" = Table.ReplaceValue(RemoveColumns,"X", "2",Replacer.ReplaceText,{"Partial"}),
+    #"Replaced Value1" = Table.ReplaceValue(#"Replaced Value","X","3",Replacer.ReplaceText,{"Full"}),
+    #"Replaced Value2" = Table.ReplaceValue(#"Replaced Value1","X","1",Replacer.ReplaceText,{"Time Align"}),
+    #"Replaced Value3" = Table.ReplaceValue(#"Replaced Value2",null,0,Replacer.ReplaceValue,{"Partial", "Full", "Time Align"}),
+    #"Change Type" = Table.TransformColumnTypes(#"Replaced Value3",{{"Partial", type number}, {"Full", type number}, {"Time Align", type number}, {"Calib Factor", type number}, {"Measured Randoms", type number}, {"Scanner Efficiency", type number}, {"Scatter Ratio", type number}, {"ECF", type number}, {"Time Alignment Residual", type number}, {"Time Alignment fit x", type number}, {"Time Alignment fit y", type number}, {"Phantom Pos x", type number}, {"Phantom Pos y", type number}}),
+    AddDaily=Table.AddColumn(#"Change Type","No extra", each if List.AllTrue({[Partial]=null,[Time Align]=null,[Full]=null}) then 0 else null, type number)
+
+in
+    AddDaily
