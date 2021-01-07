@@ -32,7 +32,7 @@ pro getSiemensQC,  GROUP_LEADER=bMain
   xoffset=50
   yoffset=50
 
-  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.3', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=xoffset, YOFFSET=yoffset,/TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
+  bMain = WIDGET_BASE(TITLE='getSiemensQC v1.4', MBAR=bar, /COLUMN, XSIZE=xsz, YSIZE=900, XOFFSET=xoffset, YOFFSET=yoffset,/TLB_KILL_REQUEST_EVENTS, /TLB_MOVE_EVENTS)
 
   file_menu=WIDGET_BUTTON(bar, VALUE='File', /MENU)
   btn_appPET=WIDGET_BUTTON(file_menu, VALUE='Configure automatic append to txt-file PET', UVALUE='addAppendTempPET')
@@ -86,6 +86,12 @@ pro getSiemensQC,  GROUP_LEADER=bMain
     'Noise 80kV','Noise 110kV','Noise 130kV',$
     'Slice 1mm','Slice 1.5mm','Slice 2.5mm','Slice 4mm','Slice 5mm',$
     'MTF50 B31s','MTF10 B31s','MTF50 H41s','MTF10 H41s','MTF50 U90s','MTF10 U90s']
+  headersCT_Intevo=['Date','Tester name','Product Name','Serial Number','Tube ID',$
+    'HUwater head min','HUwater head max','HUwater body min','HUwater body max',$
+    'Diff head max(abs)','Diff body max(abs)',$
+    'Noise head max','Noise body max',$
+    'Slice head min','Slice head max','Slice body min','Slice body max',$
+    'MTF50 B smooth','MTF10 B smooth','MTF50 H smooth','MTF10 H smooth','MTF50 UHR','MTF10 UHR']
   headers=CREATE_STRUCT('PET',headersPET,'CT', headersCT,'CT_T2', headersCT_T2)
   tblRes=WIDGET_TABLE(bMain, ALIGNMENT=1, SCR_XSIZE=xsz-10, XSIZE=200, YSIZE=N_ELEMENTS(headers.(1)), SCR_YSIZE=520, row_labels=headers.(1), COLUMN_WIDTHS=80)
 
@@ -215,47 +221,49 @@ pro getSiemensQC_event, event
               READF, lun, line
               array=[array,line]
             ENDWHILE
-            array=array[1:N_ELEMENTS(array)-1]
+            process=1
+            IF N_ELEMENTS(array) GT 1 THEN array=array[1:N_ELEMENTS(array)-1] ELSE process=0
             FREE_LUN,lun
 
-            WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
-            empt=WHERE(curTbl[*,0] EQ '')
-
-            CASE curType OF
-              0:BEGIN; PET
-                resu=readPETdailyQC(array, config)
-                strArrRes=resu.strArrRes
-
-                errArr(i)=STRJOIN(resu.errMsg,newline)
-                IF errArr(i) NE '' THEN errArr(i)=errArr(i)+newline+'Not reported in table.'
-                IF strArrRes(0) EQ '' THEN errArr(i)='Unexpected file content. Is this really a PET daily QC report?'
-                curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
-              END
-              1:BEGIN; CT constancy
-                resu=readCTcons(array, config, FILE_BASENAME(adr(i)))
-                strArrRes=resu.strArrRes
-                errArr(i)=resu.errMsg
-
-                ;check size and empty?
-                proceed=1
-                IF N_ELEMENTS(strArrRes) NE N_ELEMENTS(headers.(curCTtype)) THEN BEGIN
-                  IF empt(0) EQ 0 THEN BEGIN
-                    IF curCTtype EQ 1 THEN curCTtype=2 ELSE curCTtype=1
-                    lab=STRARR(n_elements(headers.(1)))
-                    lab[0:n_elements(headers.(curCTtype))-1]=headers.(curCTtype)
-                    WIDGET_CONTROL, tblRes, ROW_LABELS=lab
-                  ENDIF ELSE BEGIN
-                    errArr(i)='File type differ from those already read. Empty table before reading result-files of a different type.'
-                    proceed=0
-                  ENDELSE
-                ENDIF
-
-                IF proceed THEN curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
-              END
-            ENDCASE
-            IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
-            WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
-
+            IF process THEN BEGIN
+              WIDGET_CONTROL,tblRes, GET_VALUE=curTbl
+              empt=WHERE(curTbl[*,0] EQ '')
+  
+              CASE curType OF
+                0:BEGIN; PET
+                  resu=readPETdailyQC(array, config)
+                  strArrRes=resu.strArrRes
+  
+                  errArr(i)=STRJOIN(resu.errMsg,newline)
+                  IF errArr(i) NE '' THEN errArr(i)=errArr(i)+newline+'Not reported in table.'
+                  IF strArrRes(0) EQ '' THEN errArr(i)='Unexpected file content. Is this really a PET daily QC report?'
+                  curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
+                END
+                1:BEGIN; CT constancy
+                  resu=readCTcons(array, config, FILE_BASENAME(adr(i)))
+                  strArrRes=resu.strArrRes
+                  errArr(i)=resu.errMsg
+  
+                  ;check size and empty?
+                  proceed=1
+                  IF N_ELEMENTS(strArrRes) NE N_ELEMENTS(headers.(curCTtype)) THEN BEGIN
+                    IF empt(0) EQ 0 THEN BEGIN
+                      IF curCTtype EQ 1 THEN curCTtype=2 ELSE curCTtype=1
+                      lab=STRARR(n_elements(headers.(1)))
+                      lab[0:n_elements(headers.(curCTtype))-1]=headers.(curCTtype)
+                      WIDGET_CONTROL, tblRes, ROW_LABELS=lab
+                    ENDIF ELSE BEGIN
+                      errArr(i)='File type differ from those already read. Empty table before reading result-files of a different type.'
+                      proceed=0
+                    ENDELSE
+                  ENDIF
+  
+                  IF proceed THEN curTbl[empt(0),0:N_ELEMENTS(strArrRes)-1]=TRANSPOSE(strArrRes)
+                END
+              ENDCASE
+              IF empt(0) GT 6 THEN tabView=[empt(0)-6,0] ELSE tabView=[0,0]
+              WIDGET_CONTROL, tblRes, SET_VALUE=curTbl, SET_TABLE_VIEW=tabView
+            ENDIF
           ENDFOR
           errs=WHERE(errArr NE '')
           IF errs(0) NE -1 THEN BEGIN
@@ -265,6 +273,7 @@ pro getSiemensQC_event, event
             sv=DIALOG_MESSAGE(errLogg, DIALOG_PARENT=evTop)
           ENDIF
         ENDIF
+        
       END
 
       'copyTbl': BEGIN
