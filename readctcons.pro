@@ -67,6 +67,7 @@ function readCTcons, clipres, config, filename
     const=0
     typeRep=-1
     typeStr=''
+    
     symbiaT=WHERE(STRMATCH(clipres[0:1], '*Symbia T*', /FOLD_CASE) EQ 1); or old Syngo versions?
     symbiaIntevo=WHERE(STRMATCH(clipres[0:1], '*Symbia Intevo*', /FOLD_CASE) EQ 1)
     IF symbiaIntevo(0) EQ -1 THEN symbiaIntevo=0 ELSE symbiaIntevo=1
@@ -264,14 +265,26 @@ function readCTcons, clipres, config, filename
                 rowno=rowno+rownoHO(1)
 
                 FOR tt=0, N_ELEMENTS(rowno)-1 DO BEGIN
-                  ;number of Images in test
+                  ;number of Images in test                 
                   rownoNimg=WHERE(STRMATCH(clipres[rowno(tt):-1], config.CT.(langu)(8)+'*',/FOLD_CASE) EQ 1)
-                  strNimg=STRSPLIT(clipres(rownoNimg(0)+rowno(tt)),' ',/EXTRACT)
-                  nImg=LONG(strNimg(-1))
+                  IF rownoNimg(0) GT 10 THEN BEGIN
+                    ;assume not found, probably "Number of images" split into two lines
+                    stxt=STRSPLIT(config.CT.(langu)(8),' ',/EXTRACT)
+                    sfirst=STRJOIN(stxt[0:-2],' ')
+                    rownoNimg=WHERE(STRMATCH(clipres[rowno(tt):-1], sfirst+'*',/FOLD_CASE) EQ 1)
+                    IF rownoNimg(0) LT 10 THEN BEGIN
+                      strNimg=STRSPLIT(clipres(rownoNimg(0)+rowno(tt)+1),' ',/EXTRACT)
+                      nImg=LONG(strNimg(-1))
+                    ENDIF ELSE nImg=1 ;todo - smarter than 1... does this ever happen? warning?
+                  ENDIF ELSE BEGIN
+                    strNimg=STRSPLIT(clipres(rownoNimg(0)+rowno(tt)),' ',/EXTRACT)
+                    nImg=LONG(strNimg(-1))
+                  ENDELSE
 
                   addSlice=WHERE(shortres5[rowno(tt):-1] EQ sliceStr)
                   addSlice=addSlice[1:-1];first one is Nominal slice thickness
                   rownoTol=WHERE(shortres5[rowno(tt):-1] EQ tolStr)
+                  
                   IF addSlice(0) NE -1 THEN BEGIN
                     ;min/max HU water
                     tolEnd=0
